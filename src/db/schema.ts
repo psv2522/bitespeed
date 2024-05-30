@@ -1,13 +1,16 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { integer, pgTable, serial, text, timestamp } from 'drizzle-orm/pg-core';
+import { integer, pgEnum, pgTable, serial, text, timestamp } from 'drizzle-orm/pg-core';
 
+
+//Enum for linkPrecedence
+export const LinkPrecedence = pgEnum('linkPrecedence', ['primary', 'secondary']);
 //Contact table
-export const Contact : any = pgTable('contacts', {
-    id: serial('id').primaryKey(),
+export const Contact : any = pgTable('contact', {
+    id: serial('id').primaryKey().notNull(),
     phoneNumber: text('phone_number'),
     email: text('email'),
     linkedId: integer('linked_id').references(() => Contact.id, { onDelete: 'cascade' }),
-    linkPrecedence: text('link_precedence').notNull(),
+    linkPrecedence: LinkPrecedence("linkPrecedence").default('primary').notNull(),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().$onUpdate(() => new Date()),
     deletedAt: timestamp('deleted_at'),
