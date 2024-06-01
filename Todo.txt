@@ -1,0 +1,20 @@
+Payload received using POST at /identify:
+{
+"email": "psv2522@gmail.com",
+"phoneNumber": 4395723
+}
+
+
+return HTTP 200 response and payload contact data:
+{
+    "contact":{
+    "primaryContatctId": number,
+    "emails": string[], // first element being email of primary contact
+    "phoneNumbers": string[], // first element being phoneNumber of primary conta
+    "secondaryContactIds": number[] // Array of all Contact IDs that are "seconda
+    }
+}
+
+If contact doesnt exist then make new with primary as default and empty secondaryContactIds
+
+secondaryContact is created when either email or phone already exists
