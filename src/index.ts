@@ -8,7 +8,7 @@ const app = express()
 app.use(express.json());
 app.use(cors())
 
-const port = 3000
+const port = process.env.PORT || 3000;
 
 app.get('/', (req, res) => {
     res.send('Hello World!')
@@ -193,5 +193,5 @@ app.post('/identify', async (req, res) => {
 });
 
 app.listen(port, () => {
-    console.log(`Example app listening on port ${port}`)
+    console.log(`App listening on port ${port}`)
 })
