@@ -18,3 +18,5 @@ return HTTP 200 response and payload contact data:
 If contact doesnt exist then make new with primary as default and empty secondaryContactIds
 
 secondaryContact is created when either email or phone already exists
+
+Conflict checking
