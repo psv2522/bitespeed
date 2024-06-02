@@ -1,9 +1,6 @@
-import { notEqual } from "assert";
 import { db } from "./db/db"
 import { Contact } from "./db/schema";
 import { or, eq, and, ne } from 'drizzle-orm';
-import { link } from "fs";
-
 
 const express = require('express')
 const app = express()
@@ -15,10 +12,12 @@ app.get('/', (req, res) => {
     res.send('Hello World!')
 })
 
+//GET request for identify
 app.get('/identify', (req, res) => {
     res.send('POST request in the format at /identify')
 })
 
+//Insert contact into the database
 async function InsertContact(email: string, phoneNumber: string, precedenceVal: 'primary' | 'secondary' = 'primary', linkedId) {
     try {
         const user = db.insert(Contact).values({
@@ -36,6 +35,7 @@ async function InsertContact(email: string, phoneNumber: string, precedenceVal: 
     }
 }
 
+//Update contact from primary to secondary if conflict is detected
 async function UpdateContact(conflictUsers: any, linkedId: number) {
     try {
         let precedenceVal = 'secondary';
@@ -81,10 +81,11 @@ async function findPrimaryContactId(email: string, phoneNumber: string) {
     }
 }
 
-async function fetchRelatedContacts(primaryContactId, ) {
+//Fetch all related contacts
+async function fetchRelatedContacts(primaryContactId) {
     try {
         const allContacts = await db.select().from(Contact)
-            .where(eq(Contact.linkedId, primaryContactId));
+            .where(or(eq(Contact.linkedId, primaryContactId), eq(Contact.id, primaryContactId)));
         return allContacts;
     } catch (error) {
         console.error(error);
@@ -92,6 +93,7 @@ async function fetchRelatedContacts(primaryContactId, ) {
     }
 }
 
+//Conflict detection for updating contact from primary to secondary
 async function conflictUpdate(email: string, phoneNumber: string) {
     var conflictDetected = false;
     const conflictUsers = await db.select().from(Contact).where(and(or(eq(Contact.email, email), eq(Contact.phoneNumber, phoneNumber)), eq(Contact.linkPrecedence, 'primary')));
@@ -102,14 +104,48 @@ async function conflictUpdate(email: string, phoneNumber: string) {
     return { conflictDetected, conflictUsers };
 }
 
+//Response formatting
+function processResponse(allContacts) {
+    let primaryContatctId: number | null = null;
+    const emails: Set<string> = new Set();
+    const phoneNumbers: Set<string> = new Set();
+    const secondaryContactIds: number[] = [];
+
+    allContacts.forEach(contact => {
+        if (contact.linkPrecedence === 'primary') {
+            primaryContatctId = contact.id;
+        }
+        emails.add(contact.email);
+        phoneNumbers.add(contact.phoneNumber);
+        if (contact.linkPrecedence === 'secondary') {
+            secondaryContactIds.push(contact.id);
+        }
+    });
+
+    if (primaryContatctId === null) {
+        throw new Error('Primary contact not found');
+    }
+
+    return {
+        primaryContatctId,
+        emails: Array.from(emails),
+        phoneNumbers: Array.from(phoneNumbers),
+        secondaryContactIds
+    };
+}
+
+//POST request at /identify to identify the user
 app.post('/identify', async (req, res) => {
     try {
         // Extract data from request body
         const { email, phoneNumber } = req.body;
 
+        // If both null return 
         if (!email && !phoneNumber) {
             return res.status(400).json({ error: 'Either email or phoneNumber is required' });
         }
+
+        //Find primary contact id if contact exists
         let primaryContactId = await findPrimaryContactId(email, phoneNumber);
 
         let precedenceVal: 'primary' | 'secondary' = 'primary';
@@ -121,25 +157,33 @@ app.post('/identify', async (req, res) => {
             linkedId = null;
         }
 
+        //Conlict detection for updation of contact from primary to secondary
         const { conflictDetected, conflictUsers } = await conflictUpdate(email, phoneNumber);
         conflictUsers.sort((a, b) => a.id - b.id);
 
         console.log("Conflict value:" + conflictDetected);
-        let user; // Initialize user variable with null
+
+        //If conflict is detected, update the contact else insert a new or secondary contact
         if (conflictDetected) {
             console.log("Updating contact")
-            user = await UpdateContact(conflictUsers, linkedId);
+            await UpdateContact(conflictUsers, linkedId);
         } else {
             console.log("Inserting new contact")
-            user = await InsertContact(email, phoneNumber, precedenceVal, linkedId); // Assign the value inside the if block
+            await InsertContact(email, phoneNumber, precedenceVal, linkedId); 
         }
 
+        //Find all related contacts after finding the primary contact
         primaryContactId = await findPrimaryContactId(email, phoneNumber);
-        console.log(primaryContactId+ "Primary Contact Id")
-        const allContacts = await fetchRelatedContacts(primaryContactId); // Fetch all related contacts
-        console.log(allContacts)
+        const allContacts = await fetchRelatedContacts(primaryContactId[0].id); 
 
-        res.status(200).send(user);
+        // Process the response and send
+        const processedContact = processResponse(allContacts);
+        const output = {
+            contact: processedContact
+        };
+        console.log(output)
+
+        res.status(200).json(output);
     } catch (error: any) {
         console.error(error);
         res.status(500).send(error.message);
