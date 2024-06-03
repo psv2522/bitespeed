@@ -20,4 +20,4 @@ To get started with this project, follow these steps:
 3. Configure the Supabase PostgreSQL database connection in the project, generate schema, migrate and push.
 4. Start the application by running `npm start`.
 5. Access the `/identify` endpoint and make a POST request to retrieve the desired output.
-6. Deployed on render.com at [text](https://bitespeed-fgsx.onrender.com/identify)
+6. Deployed on render.com at https://bitespeed-fgsx.onrender.com/identify
